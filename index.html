@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            height: 30px;
+        }
+        
+        .game-container {
+            position: relative;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            background-color: #333;
+            padding: 5px;
+            border-radius: 5px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .win-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .cell {
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .cell:hover {
+            background-color: #e0e0e0;
+        }
+        
+        /* Player X styling (green) */
+        .player-x {
+            color: #4CAF50;
+        }
+        
+        /* Player O styling (red) */
+        .player-o {
+            color: #F44336;
+        }
+        
+        /* Winning message styling */
+        .win-message-x {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .win-message-o {
+            color: #F44336;
+            font-weight: bold;
+        }
+        
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tic Tac Toe</h1>
+    <div class="status" id="status">Player X's turn</div>
+    <div class="game-container">
+        <div class="board" id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        <svg class="win-line" id="win-line" viewBox="0 0 315 315" preserveAspectRatio="none">
+            <!-- The line will be drawn here dynamically -->
+        </svg>
+    </div>
+    <button id="reset">Reset Game</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusDisplay = document.getElementById('status');
+            const cells = document.querySelectorAll('.cell');
+            const resetButton = document.getElementById('reset');
+            const winLine = document.getElementById('win-line');
+            
+            let gameActive = true;
+            let currentPlayer = 'X';
+            // Empty string represents empty cell
+            let gameState = ['', '', '', '', '', '', '', '', ''];
+            
+            const winningConditions = [
+                [0, 1, 2], // Top row
+                [3, 4, 5], // Middle row
+                [6, 7, 8], // Bottom row
+                [0, 3, 6], // Left column
+                [1, 4, 7], // Middle column
+                [2, 5, 8], // Right column
+                [0, 4, 8], // Diagonal top-left to bottom-right
+                [2, 4, 6]  // Diagonal top-right to bottom-left
+            ];
+            
+            // Coordinates for the lines (center of each cell)
+            const cellCoordinates = [
+                { x: 52.5, y: 52.5 },   // 0
+                { x: 157.5, y: 52.5 },  // 1
+                { x: 262.5, y: 52.5 },  // 2
+                { x: 52.5, y: 157.5 },  // 3
+                { x: 157.5, y: 157.5 }, // 4
+                { x: 262.5, y: 157.5 }, // 5
+                { x: 52.5, y: 262.5 },  // 6
+                { x: 157.5, y: 262.5 }, // 7
+                { x: 262.5, y: 262.5 }  // 8
+            ];
+            
+            // Messages
+            const winMessage = () => `Player ${currentPlayer} wins!`;
+            const drawMessage = () => `Game ended in a draw!`;
+            const currentPlayerTurn = () => `Player ${currentPlayer}'s turn`;
+            
+            // Update the status display
+            statusDisplay.textContent = currentPlayerTurn();
+            
+            // Handle cell click
+            function handleCellClick(clickedCellEvent) {
+                const clickedCell = clickedCellEvent.target;
+                const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+                
+                // Check if cell is already played or game is not active
+                if (gameState[clickedCellIndex] !== '' || !gameActive) {
+                    return;
+                }
+                
+                // Update the game state and the UI
+                gameState[clickedCellIndex] = currentPlayer;
+                clickedCell.textContent = currentPlayer;
+                
+                // Apply player color class
+                if (currentPlayer === 'X') {
+                    clickedCell.classList.add('player-x');
+                } else {
+                    clickedCell.classList.add('player-o');
+                }
+                
+                // Check for a win or draw
+                if (checkWin()) {
+                    statusDisplay.textContent = winMessage();
+                    // Apply win message color based on player
+                    if (currentPlayer === 'X') {
+                        statusDisplay.classList.add('win-message-x');
+                    } else {
+                        statusDisplay.classList.add('win-message-o');
+                    }
+                    gameActive = false;
+                    return;
+                }
+                
+                if (checkDraw()) {
+                    statusDisplay.textContent = drawMessage();
+                    gameActive = false;
+                    return;
+                }
+                
+                // Switch player
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                statusDisplay.textContent = currentPlayerTurn();
+            }
+            
+            // Check if current player has won
+            function checkWin() {
+                let roundWon = false;
+                for (let i = 0; i < winningConditions.length; i++) {
+                    const winCondition = winningConditions[i];
+                    const [a, b, c] = winCondition;
+                    // Check if positions a, b and c are all the same (and not empty)
+                    if (
+                        gameState[a] === gameState[b] && 
+                        gameState[b] === gameState[c] && 
+                        gameState[a] !== ''
+                    ) {
+                        roundWon = true;
+                        
+                        // Draw the winning line
+                        drawWinningLine(winCondition, gameState[a]);
+                        break;
+                    }
+                }
+                return roundWon;
+            }
+            
+            // Draw a line connecting the winning cells
+            function drawWinningLine(winningCombination, player) {
+                const [a, b, c] = winningCombination;
+                const startPoint = cellCoordinates[a];
+                const endPoint = cellCoordinates[c];
+                
+                // Create the line element
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', startPoint.x);
+                line.setAttribute('y1', startPoint.y);
+                line.setAttribute('x2', endPoint.x);
+                line.setAttribute('y2', endPoint.y);
+                line.setAttribute('stroke', player === 'X' ? '#4CAF50' : '#F44336');
+                line.setAttribute('stroke-width', '8');
+                
+                // Clear any existing lines
+                winLine.innerHTML = '';
+                
+                // Add the line to the SVG
+                winLine.appendChild(line);
+            }
+            
+            // Check if all cells are filled (draw)
+            function checkDraw() {
+                return !gameState.includes('');
+            }
+            
+            // Reset the game
+            function resetGame() {
+                gameActive = true;
+                currentPlayer = 'X';
+                gameState = ['', '', '', '', '', '', '', '', ''];
+                statusDisplay.textContent = currentPlayerTurn();
+                
+                // Clear the win message styling
+                statusDisplay.classList.remove('win-message-x', 'win-message-o');
+                
+                // Clear the board and remove all special classes
+                cells.forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('player-x', 'player-o');
+                });
+                
+                // Clear the winning line
+                winLine.innerHTML = '';
+            }
+            
+            // Add event listeners
+            cells.forEach(cell => {
+                cell.addEventListener('click', handleCellClick);
+            });
+            
+            resetButton.addEventListener('click', resetGame);
+        });
+    </script>
+</body>
+</html> 
